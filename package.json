@@ -1,0 +1,20 @@
+{
+  "name": "treejs-generator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Photo-to-3D generator: plan with Claude Opus/Sonnet, build with Sonnet/Haiku, preview and export GLB.",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "server": "node server/server.mjs",
+    "build": "vite build",
+    "start": "vite build && node server/server.mjs"
+  },
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}
+

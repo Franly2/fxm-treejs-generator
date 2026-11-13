@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Treejs Generator</title>
+  </head>
+  <body>
+    <div id="app">
+      <aside id="sidebar">
+        <div class="brand">
+          <div class="logo"><span></span><span></span><span></span></div>
+          <div class="brand-name">Treejs Generator</div>
+        </div>
+        <button id="btn-new" class="btn-new" title="Start a new chat">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          New chat
+        </button>
+        <div class="side-label">History</div>
+        <div id="history" class="history"></div>
+        <div id="key-status" class="key-status"></div>
+      </aside>
+
+      <main id="chat">
+        <header class="chat-head">
+          <div class="chat-head-main">
+            <div id="chat-title" class="chat-title">New chat</div>
+            <div id="chat-sub" class="chat-sub"></div>
+          </div>
+          <!-- <div id="chat-usage" class="chat-usage"></div> -->
+        </header>
+        <div id="thread" class="thread"></div>
+        <div class="composer-wrap">
+          <div id="attach-row" class="attach-row"></div>
+          <div class="composer" id="composer">
+            <button id="btn-attach" class="icon-btn" title="Attach reference photos">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="9" r="1.8"/><path d="m21 15-5-5L5 21"/></svg>
+            </button>
+            <textarea id="prompt" rows="1" placeholder="Attach a reference photo and describe what to build..."></textarea>
+            <div class="planner-pick" title="Model used for planning">
+              <span>Planner</span>
+              <select id="plan-model"></select>
+            </div>
+            <button id="btn-send" class="send-btn" title="Send (Enter)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            </button>
+          </div>
+          <input id="file-input" type="file" accept="image/*" multiple hidden />
+          <div class="composer-hint">Enter to send, Shift+Enter for a new line. You can paste or drop images.</div>
+        </div>
+      </main>
+
+      <section id="viewer-panel">
+        <header class="viewer-head">
+          <div id="versions" class="versions"></div>
+          <div class="viewer-actions">
+            <button id="btn-frame" class="ghost-btn" title="Re-center camera">Recenter</button>
+            <button id="btn-export-code" class="ghost-btn" title="Download as .ts" disabled>Export Code</button>
+            <button id="btn-export" class="primary-btn" title="Download as .glb" disabled>
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16"/></svg>
+              Export GLB
+            </button>
+          </div>
+        </header>
+        <div id="viewer" class="viewer">
+          <div id="viewer-empty" class="viewer-empty">
+            <div class="cube-ghost"><i></i><i></i><i></i></div>
+            <div>Your 3D model will appear here</div>
+          </div>
+          <div id="viewer-tip" class="viewer-tip"></div>
+          <div id="viewer-loader" class="viewer-loader">
+            <div class="loader3d"><i></i><i></i><i></i></div>
+            <div id="loader-title" class="loader-title">Building your model</div>
+            <div id="loader-sub" class="loader-sub"></div>
+            <div class="loader-bar"><span></span></div>
+          </div>
+          <div id="viewer-stats" class="viewer-stats"></div>
+        </div>
+        <div id="code-panel" class="code-panel hide">
+          <div class="code-head">
+            <div class="code-head-left">
+              <span class="code-badge">TS</span>
+              <span id="code-title" class="code-title">Model Code</span>
+              <span id="code-meta" class="code-meta"></span>
+              <span id="code-dirty" class="code-dirty hide">Modified</span>
+            </div>
+            <div class="code-head-right">
+              <button id="btn-refresh-code" class="code-btn primary" title="Run edited code in 3D viewer (Ctrl+Enter)">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-15.5-6.36L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 15.5 6.36L21 16"/><path d="M16 16h5v5"/></svg>
+                Refresh 3D
+              </button>
+              <button id="btn-reset-code" class="code-btn" title="Restore original AI-generated code for this version">Reset</button>
+              <button id="btn-copy-code" class="code-btn" title="Copy code to clipboard">Copy</button>
+              <button id="btn-toggle-code" class="code-btn" title="Collapse or expand code editor">Hide Code</button>
+            </div>
+          </div>
+          <div class="code-tabs-bar">
+            <div id="code-tabs" class="code-tabs"></div>
+            <button id="btn-add-file" class="code-tab-add" title="Add a new .ts component module">+ File</button>
+          </div>
+          <div id="code-error" class="code-error hide"></div>
+          <div id="code-body" class="code-body">
+            <div id="code-lines" class="code-lines">1</div>
+            <textarea id="code-editor" class="code-editor" spellcheck="false" wrap="off" placeholder="// 3D model code will appear here..."></textarea>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div id="toasts" class="toasts"></div>
+    <dialog id="export-dialog" class="export-dialog">
+      <form method="dialog" class="export-dialog-box">
+        <div class="export-dialog-title">Export Code (.zip)</div>
+        <label class="export-dialog-label" for="export-project-name">Project name</label>
+        <input id="export-project-name" class="export-dialog-input" type="text" autocomplete="off" />
+        <div class="export-dialog-actions">
+          <button type="button" id="export-cancel" class="ghost-btn">Cancel</button>
+          <button type="submit" id="export-confirm" class="primary-btn">Export</button>
+        </div>
+      </form>
+    </dialog>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
+
