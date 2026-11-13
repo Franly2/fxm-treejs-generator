@@ -5,16 +5,43 @@ async function jsonFetch(url, opts) {
   return data;
 }
 
+const LS_KEY = 'treejs_gen_sessions_v1';
+function readStore() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { return {}; }
+}
+function writeStore(map) {
+  localStorage.setItem(LS_KEY, JSON.stringify(map));
+}
+
 export const getConfig = () => jsonFetch('/api/config');
-export const listSessions = () => jsonFetch('/api/sessions');
-export const getSession = (id) => jsonFetch(`/api/sessions/${id}`);
-export const deleteSession = (id) => jsonFetch(`/api/sessions/${id}`, { method: 'DELETE' });
-export const saveSession = (s) =>
-  jsonFetch(`/api/sessions/${s.id}`, {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(s),
-  });
+export const listSessions = async () => {
+  const map = readStore();
+  return Object.values(map)
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+    .map((s) => ({
+      id: s.id,
+      title: s.title,
+      updatedAt: s.updatedAt,
+      models: (s.messages || []).filter((m) => m.role === 'result' && m.code && !m.error).length,
+    }));
+};
+export const getSession = async (id) => {
+  const s = readStore()[id];
+  if (!s) throw new Error('Session not found');
+  return s;
+};
+export const deleteSession = async (id) => {
+  const map = readStore();
+  delete map[id];
+  writeStore(map);
+  return { ok: true };
+};
+export const saveSession = async (s) => {
+  const map = readStore();
+  map[s.id] = s;
+  writeStore(map);
+  return { ok: true };
+};
 
 /** Streams a generation. Resolves with { text, usage }. */
 export async function stream(payload, { onDelta, signal } = {}) {
