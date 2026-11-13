@@ -37,10 +37,11 @@ export const deleteSession = async (id) => {
   return { ok: true };
 };
 export const saveSession = async (s) => {
+  s.updatedAt = Date.now();
   const map = readStore();
   map[s.id] = s;
   writeStore(map);
-  return { ok: true };
+  return { ok: true, updatedAt: s.updatedAt };
 };
 
 /** Streams a generation. Resolves with { text, usage }. */

@@ -161,6 +161,7 @@ export default async function handler(req) {
         this.decoder = new TextDecoder();
         this.encoder = new TextEncoder();
         this.buf = '';
+        this.fullText = '';
         this.usage = { input: 0, output: 0 };
         this.stopReason = '';
       },
@@ -175,6 +176,7 @@ export default async function handler(req) {
           try {
             const ev = JSON.parse(line.slice(5).trim());
             if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
+              this.fullText += ev.delta.text;
               controller.enqueue(this.encoder.encode(`data: ${JSON.stringify({ type: 'delta', text: ev.delta.text })}\n\n`));
             } else if (ev.type === 'message_start') {
               this.usage.input = ev.message?.usage?.input_tokens || 0;
@@ -183,7 +185,7 @@ export default async function handler(req) {
               this.stopReason = ev.delta?.stop_reason || this.stopReason;
             } else if (ev.type === 'message_stop') {
               controller.enqueue(
-                this.encoder.encode(`data: ${JSON.stringify({ type: 'done', usage: this.usage, stopReason: this.stopReason })}\n\n`)
+                this.encoder.encode(`data: ${JSON.stringify({ type: 'done', text: this.fullText, usage: this.usage, stopReason: this.stopReason })}\n\n`)
               );
             } else if (ev.type === 'error') {
               controller.enqueue(this.encoder.encode(`data: ${JSON.stringify({ type: 'error', error: ev.error?.message || 'Stream error' })}\n\n`));
