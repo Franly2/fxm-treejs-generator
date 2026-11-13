@@ -25,7 +25,7 @@ const viewer = new Viewer($('#viewer'), $('#viewer-tip'));
 window.__viewer = viewer;
 viewer.onRuntimeError = (err) => toast(`Model runtime error: ${err.message}`, 'error');
 
-const MODEL_LABEL = { opus: 'Opus 5.5', sonnet: 'Sonnet 5.5', haiku: 'Haiku 5.5' };
+const MODEL_LABEL = { opus: 'Opus 5.5', sonnet: 'Sonnet 5.5', haiku: 'Haiku 5.5', import: 'Imported' };
 const DEFAULT_PRICING = {
   opus: { input: 5, output: 25 },
   sonnet: { input: 3, output: 15 },
@@ -439,22 +439,45 @@ function renderVersions() {
     .map((m) => {
       const u = getVersionTotalUsage(s, m);
       // return `<button class="ver ${m.id === state.viewId ? 'active' : ''}" data-ver="${m.id}" title="${u.estimated ? '~' : ''}${u.total.toLocaleString()} tokens (${fmtCost(u.cost)})">v${m.version} <span class="ver-tok">${fmtTokens(u.total)}</span></button>`;
-      return `<button class="ver ${m.id === state.viewId ? 'active' : ''}" data-ver="${m.id}">v${m.version}</button>`;
+      const vLabel = m.versionLabel ? escapeHtml(m.versionLabel) : `v${m.version}`;
+      return `<button class="ver ${m.id === state.viewId ? 'active' : ''}" data-ver="${m.id}">${vLabel}<span class="ver-del" data-del-ver="${m.id}" title="Delete version">&times;</span></button>`;
     })
     .join('');
   el.querySelector('.ver.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
-$('#versions').addEventListener('click', (e) => {
+$('#versions').addEventListener('click', async (e) => {
+  const del = e.target.closest('[data-del-ver]');
+  if (del) {
+    e.stopPropagation();
+    const s = state.current;
+    if (!s || !confirm('Delete this model version?')) return;
+    const id = del.dataset.delVer;
+    s.messages = s.messages.filter((m) => m.id !== id);
+    s.updatedAt = Date.now();
+    await api.saveSession(s);
+    const rem = results(s);
+    if (state.viewId === id) {
+      state.viewId = null;
+      if (rem.length) showVersion(rem[rem.length - 1].id);
+      else { viewer.clear(); updateViewerEmpty(); renderCodeTabs(); }
+    }
+    renderAll();
+    toast('Version deleted');
+    return;
+  }
   const b = e.target.closest('[data-ver]');
   if (b) showVersion(b.dataset.ver);
 });
 $('#btn-frame').addEventListener('click', () => viewer.frame3d());
-function askProjectName(defaultName) {
+function askDialog({ title, label, confirmText, defaultValue }) {
   return new Promise((resolve) => {
     const dlg = $('#export-dialog');
     const inp = $('#export-project-name');
     const cancel = $('#export-cancel');
-    inp.value = defaultName;
+    dlg.querySelector('.export-dialog-title').textContent = title;
+    dlg.querySelector('.export-dialog-label').textContent = label;
+    $('#export-confirm').textContent = confirmText;
+    inp.value = defaultValue;
     const done = (val) => {
       dlg.removeEventListener('close', onClose);
       cancel.removeEventListener('click', onCancel);
@@ -473,6 +496,80 @@ function askProjectName(defaultName) {
     inp.select();
   });
 }
+
+const askProjectName = (defaultName) =>
+  askDialog({ title: 'Export Code (.zip)', label: 'Project name', confirmText: 'Export', defaultValue: defaultName });
+
+function unwrapExportedCode(text) {
+  const m = text.match(/export\s+function\s+buildModel\s*\([^)]*\)\s*\{([\s\S]*)\}\s*$/);
+  return (m ? m[1] : text).trim();
+}
+
+function readZipModelIndex(buf) {
+  const view = new DataView(buf);
+  const bytes = new Uint8Array(buf);
+  const dec = new TextDecoder();
+  let off = 0;
+  while (off + 30 <= bytes.length && view.getUint32(off, true) === 0x04034b50) {
+    const method = view.getUint16(off + 8, true);
+    const compSize = view.getUint32(off + 18, true);
+    const nameLen = view.getUint16(off + 26, true);
+    const extraLen = view.getUint16(off + 28, true);
+    const name = dec.decode(bytes.subarray(off + 30, off + 30 + nameLen));
+    const dataStart = off + 30 + nameLen + extraLen;
+    if (name === 'src/model/index.ts' || name.endsWith('/index.ts')) {
+      if (method !== 0) throw new Error('Compressed ZIP is not supported; import .ts/.js or an uncompressed .zip');
+      return dec.decode(bytes.subarray(dataStart, dataStart + compSize));
+    }
+    off = dataStart + compSize;
+  }
+  throw new Error('src/model/index.ts not found in ZIP');
+}
+
+$('#btn-import-code').addEventListener('click', () => $('#import-file-input').click());
+$('#import-file-input').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  if (!files.length) return;
+  try {
+    const target = files.find((f) => {
+      const p = (f.webkitRelativePath || f.name).replace(/\\/g, '/');
+      return !p.includes('/node_modules/') && (p.endsWith('/src/model/index.ts') || p === 'src/model/index.ts');
+    });
+    if (!target) throw new Error('src/model/index.ts not found in selected folder');
+    const code = unwrapExportedCode(await target.text());
+    if (!code) throw new Error('src/model/index.ts is empty');
+
+    if (!state.current) await createNewChat();
+    const s = state.current;
+    const nextVer = (results(s).reduce((max, r) => Math.max(max, r.version || 0), 0)) + 1;
+    const input = await askDialog({
+      title: 'Import Code',
+      label: 'Version name',
+      confirmText: 'Save',
+      defaultValue: `v${nextVer}-custom`,
+    });
+    if (input === null) return;
+    const versionLabel = input.trim() || `v${nextVer}-custom`;
+    const msg = {
+      id: uid(),
+      role: 'result',
+      code,
+      model: 'import',
+      version: nextVer,
+      versionLabel,
+      createdAt: Date.now(),
+    };
+    s.messages.push(msg);
+    s.updatedAt = Date.now();
+    await api.saveSession(s);
+    renderAll();
+    showVersion(msg.id);
+    toast(`Imported ${versionLabel}`, 'success');
+  } catch (err) {
+    toast(`Import failed: ${err.message}`, 'error');
+  }
+});
 
 $('#btn-export-code').addEventListener('click', async () => {
   const s = state.current;

@@ -333,3 +333,12 @@ select:focus { outline: 2px solid #c7d2fe; }
   margin-top: 6px;
 }
 
+.ver { display: inline-flex; align-items: center; gap: 5px; }
+.ver-del {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 999px; font-size: 12px; line-height: 1;
+  opacity: 0.45; transition: opacity .15s, background .15s;
+}
+.ver:hover .ver-del { opacity: 0.85; }
+.ver-del:hover { opacity: 1 !important; background: rgba(239, 68, 68, 0.18); color: #ef4444; }
+
