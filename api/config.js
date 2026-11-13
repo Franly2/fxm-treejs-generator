@@ -22,7 +22,7 @@ export default async function handler(req) {
       models: [
         { id: 'opus', label: 'Opus 5.5', roles: ['plan'] },
         { id: 'sonnet', label: 'Sonnet 5.5', roles: ['plan', 'execute'] },
-        { id: 'haiku', label: 'Haiku 5.5', roles: ['execute'] },
+        { id: 'haiku', label: 'Haiku 5.5', roles: ['plan', 'execute'] },
       ],
     }),
     {
